@@ -1,150 +1,97 @@
-import os
-import zipfile
-import requests
 import streamlit as st
+import requests
+import zipfile
+import os
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 
-# ==============================================
-# CONFIGURATION
-# ==============================================
-DRIVE_FILE_ID = "1Nt7XvedS7h643zkEBwc_Fi3wN4tf3Yn2"  
-ZIP_NAME = "t5_pubmed_model_zip.zip"      
-MODEL_DIR = "t5_pubmed_model"         
+# -------------------------------------------------------------------
+# 📦 CONFIGURATION
+# -------------------------------------------------------------------
+MODEL_DIR = "t5_pubmed_model"
+ZIP_NAME = "t5_pubmed_model.zip"
+FILE_ID = "1XZF_zbpWr-JIhlk1KkFR9gO4H9UrOiLv"  
+URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
 
-st.set_page_config(page_title="🧠 PubMed Summarizer", page_icon="🩺", layout="wide")
+# -------------------------------------------------------------------
+# ⚙️ FUNCTION: Download & Load Model
+# -------------------------------------------------------------------
+@st.cache_resource(show_spinner=False)
+def load_model_from_drive():
+    if not os.path.exists(MODEL_DIR):
+        st.info("📦 Downloading model (~500 MB)... Please wait 3–5 minutes.")
 
-# ==============================================
-# UTILITY FUNCTIONS
-# ==============================================
-def download_file_from_google_drive(file_id, destination, progress_callback=None):
-    """Reliable Google Drive file downloader with confirmation token handling."""
-    URL = "https://drive.google.com/uc?export=download"
-    session = requests.Session()
-    response = session.get(URL, params={"id": file_id}, stream=True)
-    token = None
+        headers = {"User-Agent": "Mozilla/5.0"}
+        with requests.get(URL, headers=headers, stream=True) as response:
+            response.raise_for_status()
+            content_type = response.headers.get("Content-Type", "")
+            if "html" in content_type.lower():
+                st.error("❌ Google Drive returned an HTML page. Make sure file is shared with 'Anyone with the link'.")
+                st.stop()
 
-    # Look for download confirmation token
-    for key, value in response.cookies.items():
-        if key.startswith("download_warning"):
-            token = value
+            total_size = int(response.headers.get("content-length", 0))
+            downloaded_size = 0
+            with open(ZIP_NAME, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
+                        percent = (downloaded_size / total_size) * 100 if total_size else 0
+                        st.write(f"Downloading... {percent:.1f}%")
 
-    if token:
-        response = session.get(URL, params={"id": file_id, "confirm": token}, stream=True)
-
-    # Check for HTML (Google warning page)
-    if "text/html" in response.headers.get("Content-Type", ""):
-        raise ValueError(
-            "❌ Google Drive returned an HTML page instead of a ZIP. "
-            "Please ensure the file is shared with 'Anyone with the link'."
-        )
-
-    total = int(response.headers.get("Content-Length", 0))
-    bytes_written = 0
-    CHUNK_SIZE = 32768
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:
-                f.write(chunk)
-                bytes_written += len(chunk)
-                if progress_callback and total:
-                    pct = int(bytes_written / total * 100)
-                    progress_callback(pct)
-
-    return destination
-
-
-@st.cache_resource
-def load_model_from_drive(file_id):
-    """Downloads, extracts, and loads the model once."""
-    ZIP_NAME = "t5_pubmed_model.zip"
-    MODEL_DIR = "t5_pubmed_model"
-
-    if not os.path.isdir(MODEL_DIR):
-        st.warning("📦 Downloading model (~500MB)... Please wait 3–5 minutes.")
-        progress = st.progress(0)
-
-        def update_progress(pct):
-            progress.progress(pct)
-
-        # Download ZIP
-        try:
-            download_file_from_google_drive(file_id, ZIP_NAME, progress_callback=update_progress)
-        except Exception as e:
-            st.error(f"❌ Download failed: {e}")
-            st.stop()
-
-        # Verify it’s a valid ZIP
-        if not zipfile.is_zipfile(ZIP_NAME):
-            st.error("❌ The downloaded file is not a valid ZIP. Check your Google Drive share settings.")
-            st.stop()
-
-        # Extract ZIP
+        st.info("📂 Extracting model files...")
         with zipfile.ZipFile(ZIP_NAME, "r") as zip_ref:
-            zip_ref.extractall(MODEL_DIR)
-
+            zip_ref.extractall(".")
         os.remove(ZIP_NAME)
         st.success("✅ Model downloaded and extracted successfully!")
 
+    # Load model
     tokenizer = T5Tokenizer.from_pretrained(MODEL_DIR)
     model = T5ForConditionalGeneration.from_pretrained(MODEL_DIR)
     return tokenizer, model
 
-# ==============================================
-# MAIN APP UI
-# ==============================================
-st.title("🧠 PubMed Medical Summarizer")
-st.caption("Fine-tuned **T5-small** model for biomedical abstract summarization.")
 
-with st.expander("📘 About this App"):
-    st.markdown("""
-    This app uses a fine-tuned **T5-small Transformer** trained on the 
-    [PubMed Summarization Dataset](https://huggingface.co/datasets/ccdv/pubmed-summarization).  
-    It converts **long biomedical research abstracts** into concise summaries.
-    """)
+# -------------------------------------------------------------------
+# 🧠 STREAMLIT APP UI
+# -------------------------------------------------------------------
+st.title("🧠 PubMed Medical Summarizer")
+st.write("Fine-tuned **T5-small** model for biomedical abstract summarization.")
+
+st.markdown("### 📘 About this App")
+st.markdown(
+    "This tool summarizes biomedical research abstracts using a fine-tuned Transformer model "
+    "trained on the PubMed dataset. Enter a long abstract below and get a concise summary instantly!"
+)
 
 # Load model
-tokenizer, model = load_model_from_drive(DRIVE_FILE_ID)
+tokenizer, model = load_model_from_drive()
 
+# -------------------------------------------------------------------
+# 🧾 INPUT AREA
+# -------------------------------------------------------------------
+st.subheader("🩺 Enter a medical abstract:")
+article = st.text_area("Paste the abstract text here:", height=250)
 
-# ==============================================
-# USER INPUT
-# ==============================================
-st.subheader("🩺 Enter your medical abstract below:")
-article_text = st.text_area("Paste the research abstract or text you want to summarize:", height=200)
-
-col1, col2, col3 = st.columns([2, 1, 1])
-with col1:
-    max_length = st.slider("Maximum Summary Length (tokens)", 50, 300, 150)
-with col2:
-    min_length = st.slider("Minimum Summary Length (tokens)", 20, 100, 40)
-with col3:
-    num_beams = st.slider("Beam Search (Quality)", 2, 6, 4)
-
-generate_button = st.button("✨ Generate Summary")
-
-# ==============================================
-# GENERATION
-# ==============================================
-if generate_button:
-    if not article_text.strip():
-        st.error("⚠️ Please enter a text to summarize.")
+if st.button("✨ Summarize"):
+    if not article.strip():
+        st.warning("Please enter some text to summarize.")
     else:
-        st.info("🧠 Generating summary... (this may take a few seconds)")
-        inputs = tokenizer("summarize: " + article_text, return_tensors="pt", truncation=True, max_length=512)
-        summary_ids = model.generate(
-            inputs["input_ids"],
-            max_length=max_length,
-            min_length=min_length,
-            num_beams=num_beams,
-            early_stopping=True
-        )
-        summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-        st.success("✅ Summary Generated:")
+        with st.spinner("Generating summary... ⏳"):
+            inputs = tokenizer("summarize: " + article, return_tensors="pt", truncation=True, max_length=512)
+            summary_ids = model.generate(
+                inputs["input_ids"],
+                max_length=150,
+                min_length=40,
+                num_beams=4,
+                early_stopping=True
+            )
+            summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+        st.success("✅ Summary Generated!")
+        st.markdown("### 🩸 **Generated Summary:**")
         st.write(summary)
 
-        with st.expander("📄 View Original Text"):
-            st.write(article_text)
-
-# ==============================================
-
+# -------------------------------------------------------------------
+# 📚 FOOTER
+# -------------------------------------------------------------------
+st.markdown("---")
+st.caption("Built with ❤️ using Streamlit, Transformers, and PyTorch.")
