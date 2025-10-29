@@ -5,14 +5,14 @@
 ---
 
 ##  Table of Contents  
-- [ Project Overview](#-project-overview)  
-- [ Dataset](#-dataset)  
-- [ Model](#️-model)  
-- [ Training Progress](#-training-progress)  
-- [ Results](#-results)  
-- [ License & Attribution](#-license--attribution)  
-- [ Acknowledgments](#-acknowledgments)  
-- [ Author](#-author) 
+- [Project Overview](#project-overview)  
+- [Dataset](#dataset)  
+- [Model](#model)  
+- [Training Progress](#training-progress)  
+- [Results](#results)  
+- [License & Attribution](#license--attribution)  
+- [Acknowledgments](#acknowledgments)
+- [Author](#author) 
 ---
 
 ##  Project Overview  
