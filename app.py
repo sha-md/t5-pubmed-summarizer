@@ -17,53 +17,78 @@ st.set_page_config(page_title="🧠 PubMed Summarizer", page_icon="🩺", layout
 # UTILITY FUNCTIONS
 # ==============================================
 def download_file_from_google_drive(file_id, destination, progress_callback=None):
-    """Downloads large file from Google Drive, handling the confirmation token for large files."""
-    URL = "https://docs.google.com/uc?export=download"
+    """Reliable Google Drive file downloader with confirmation token handling."""
+    URL = "https://drive.google.com/uc?export=download"
     session = requests.Session()
-    response = session.get(URL, params={'id': file_id}, stream=True)
+    response = session.get(URL, params={"id": file_id}, stream=True)
     token = None
-    for key, value in response.cookies.items():
-        if key.startswith('download_warning') or key.startswith('download'):
-            token = value
-    if token:
-        response = session.get(URL, params={'id': file_id, 'confirm': token}, stream=True)
 
-    total = response.headers.get('Content-Length')
-    total = int(total) if total is not None else None
-    CHUNK_SIZE = 32768
+    # Look for download confirmation token
+    for key, value in response.cookies.items():
+        if key.startswith("download_warning"):
+            token = value
+
+    if token:
+        response = session.get(URL, params={"id": file_id, "confirm": token}, stream=True)
+
+    # Check for HTML (Google warning page)
+    if "text/html" in response.headers.get("Content-Type", ""):
+        raise ValueError(
+            "❌ Google Drive returned an HTML page instead of a ZIP. "
+            "Please ensure the file is shared with 'Anyone with the link'."
+        )
+
+    total = int(response.headers.get("Content-Length", 0))
     bytes_written = 0
+    CHUNK_SIZE = 32768
+
     with open(destination, "wb") as f:
         for chunk in response.iter_content(CHUNK_SIZE):
             if chunk:
                 f.write(chunk)
                 bytes_written += len(chunk)
                 if progress_callback and total:
-                    progress_callback(bytes_written, total)
+                    pct = int(bytes_written / total * 100)
+                    progress_callback(pct)
+
     return destination
 
 
 @st.cache_resource
-def load_model_from_drive(file_id=DRIVE_FILE_ID):
-    """Downloads model zip from Google Drive, extracts, and loads the tokenizer and model."""
+def load_model_from_drive(file_id):
+    """Downloads, extracts, and loads the model once."""
+    ZIP_NAME = "t5_pubmed_model.zip"
+    MODEL_DIR = "t5_pubmed_model"
+
     if not os.path.isdir(MODEL_DIR):
-        st.warning("📦 Downloading model from Google Drive (~500MB)...")
-        with st.spinner("Downloading model... Please wait 3–5 minutes (only once)."):
-            progress_bar = st.progress(0)
+        st.warning("📦 Downloading model (~500MB)... Please wait 3–5 minutes.")
+        progress = st.progress(0)
 
-            def progress_callback(written, total):
-                pct = int(written / total * 100)
-                progress_bar.progress(pct)
+        def update_progress(pct):
+            progress.progress(pct)
 
-            download_file_from_google_drive(file_id, ZIP_NAME, progress_callback=progress_callback)
-            with zipfile.ZipFile(ZIP_NAME, 'r') as zip_ref:
-                zip_ref.extractall(MODEL_DIR)
-            os.remove(ZIP_NAME)
-            st.success("✅ Model downloaded and extracted successfully!")
+        # Download ZIP
+        try:
+            download_file_from_google_drive(file_id, ZIP_NAME, progress_callback=update_progress)
+        except Exception as e:
+            st.error(f"❌ Download failed: {e}")
+            st.stop()
+
+        # Verify it’s a valid ZIP
+        if not zipfile.is_zipfile(ZIP_NAME):
+            st.error("❌ The downloaded file is not a valid ZIP. Check your Google Drive share settings.")
+            st.stop()
+
+        # Extract ZIP
+        with zipfile.ZipFile(ZIP_NAME, "r") as zip_ref:
+            zip_ref.extractall(MODEL_DIR)
+
+        os.remove(ZIP_NAME)
+        st.success("✅ Model downloaded and extracted successfully!")
 
     tokenizer = T5Tokenizer.from_pretrained(MODEL_DIR)
     model = T5ForConditionalGeneration.from_pretrained(MODEL_DIR)
     return tokenizer, model
-
 
 # ==============================================
 # MAIN APP UI
