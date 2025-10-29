@@ -9,8 +9,8 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 # -------------------------------------------------------------------
 MODEL_DIR = "t5_pubmed_model"
 ZIP_NAME = "t5_pubmed_model.zip"
-FILE_ID = "1XZF_zbpWr-JIhlk1KkFR9gO4H9UrOiLv"  
-URL = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+FILE_ID = "1XZF_zbpWr-JIhlk1KkFR9gO4H9UrOiLv"
+URL = f"https://drive.google.com/file/d/1XZF_zbpWr-JIhlk1KkFR9gO4H9UrOiLv/view?usp=sharing"
 
 # -------------------------------------------------------------------
 # ⚙️ FUNCTION: Download & Load Model
