@@ -104,7 +104,8 @@ with st.expander("📘 About this App"):
     """)
 
 # Load model
-tokenizer, model = load_model_from_drive()
+tokenizer, model = load_model_from_drive(DRIVE_FILE_ID)
+
 
 # ==============================================
 # USER INPUT
