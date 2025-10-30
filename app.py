@@ -78,11 +78,13 @@ st.success("✅ Model loaded and ready for summarization!")
 def summarize_text(text):
     input_text = "summarize: " + text
     inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
-    summary_ids = model.generate(
+   summary_ids = model.generate(
         inputs,
-        max_length=150,
-        min_length=40,
-        num_beams=4,
+        max_length=120,
+        min_length=30,
+        num_beams=6,
+        repetition_penalty=2.5,
+        length_penalty=1.2,
         early_stopping=True
     )
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
@@ -97,17 +99,12 @@ st.sidebar.markdown("""
 **PubMed Summarizer** condenses biomedical research abstracts into short summaries  
 using a fine-tuned [T5-small](https://huggingface.co/t5-small) model.
 
-🧩 **Built With**
-- PyTorch  
-- Hugging Face Transformers  
-- Streamlit  
 
 📚 **Dataset**
 [ccdv/pubmed-summarization](https://huggingface.co/datasets/ccdv/pubmed-summarization)
 
 👩‍💻 **Developer**
-Shabnam   
- Built for research and learning.
+Shabnam B Mahammad
 """)
 
 
@@ -156,4 +153,21 @@ if st.button("🔍 Summarize"):
 
 
 # -----------------------------
+# 📊 SAMPLE OUTPUT GALLERY
+# -----------------------------
+st.markdown("---")
+st.markdown("## 🧪 Sample Output Gallery")
 
+samples = {
+    "1️⃣ Child Malnutrition": """A recent systematic analysis showed that in 2011, 314 million children younger than 5 years were mildly, moderately, or severely stunted. The prevalence of malnutrition among Iranian school children ranged from 6% to 16%. Anthropometric data from Tehran showed similar findings.""",
+    "2️⃣ Cardiovascular Study": """Elevated cholesterol levels are a major risk factor for cardiovascular diseases. A randomized trial showed that statins reduced LDL cholesterol by 35% and decreased the risk of heart attacks by 27%. Regular physical activity further improved cardiovascular health outcomes.""",
+    "3️⃣ COVID-19 Vaccine Efficacy": """Clinical trials for COVID-19 mRNA vaccines showed 95% efficacy in preventing symptomatic infection. Common side effects included fatigue and mild fever. Long-term studies indicated sustained immunity for at least 6 months after the second dose.""",
+}
+
+for title, text in samples.items():
+    with st.expander(f"🔹 {title}"):
+        st.write("**Original Abstract:**")
+        st.write(text)
+        summary = summarize_text(text)
+        st.write("**AI Summary:**")
+        st.success(summary)
