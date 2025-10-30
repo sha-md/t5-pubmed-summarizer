@@ -76,9 +76,10 @@ st.success("✅ Model loaded and ready for summarization!")
 # 🩺 SUMMARIZATION FUNCTION
 # -----------------------------
 def summarize_text(text):
+    """Generate a smoother, abstractive summary with adjusted parameters."""
     input_text = "summarize: " + text
     inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
-   summary_ids = model.generate(
+    summary_ids = model.generate(
         inputs,
         max_length=120,
         min_length=30,
