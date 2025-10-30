@@ -4,16 +4,17 @@
 
 ---
 
-##  Table of Contents  
-- [Project Overview](#project-overview)  
-- [Dataset](#dataset)  
-- [Model](#model)  
-- [Training Progress](#training-progress)  
-- [Results](#results)
-- [StreamlitcApp](#streamlit app) 
-- [License & Attribution](#license--attribution)  
-- [Acknowledgments](#acknowledgments)
-- [Author](#author) 
+##  Table of Contents
+- [ Project Overview](#-project-overview)
+- [ Dataset](#-dataset)
+- [ Model](#️-model)
+- [ Training Progress](#-training-progress)
+- [ Results](#-results)
+- [ Streamlit App](#-streamlit-app)
+- [ License & Attribution](#-license--attribution)
+- [ Acknowledgments](#-acknowledgments)
+- [ Author](#-author)
+
 ---
 
 ##  Project Overview  
