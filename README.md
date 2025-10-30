@@ -9,7 +9,8 @@
 - [Dataset](#dataset)  
 - [Model](#model)  
 - [Training Progress](#training-progress)  
-- [Results](#results)  
+- [Results](#results)
+- [StreamlitcApp](#streamlit app) 
 - [License & Attribution](#license--attribution)  
 - [Acknowledgments](#acknowledgments)
 - [Author](#author) 
@@ -74,6 +75,13 @@ For this project, approximately **1,000 samples** were used for demonstration du
  **Overall:** Strong baseline summarization using minimal fine-tuning on CPU.  
 
 ---
+## Streamlit App  
+
+Experience the **PubMed Medical Summarizer** interactively!  
+Summarize biomedical abstracts in seconds using the fine-tuned T5 model.  
+
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sha-md-t5-pubmed-summarizer-app-psrgrl.streamlit.app/))
+
 
 ## 📄 License & Attribution  
 
