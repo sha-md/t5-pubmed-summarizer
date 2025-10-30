@@ -1,97 +1,112 @@
+# 🧠 PubMed Medical Summarizer (Streamlit App)
+# Description: Summarizes biomedical research abstracts using a fine-tuned T5-small model trained on the PubMed dataset.
+
 import streamlit as st
+import torch
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+import os
 import requests
 import zipfile
-import os
-from transformers import T5Tokenizer, T5ForConditionalGeneration
 
-# -------------------------------------------------------------------
-# 📦 CONFIGURATION
-# -------------------------------------------------------------------
+# -----------------------------
+# 🔧 CONFIGURATION
+# -----------------------------
+st.set_page_config(page_title="🧠 PubMed Medical Summarizer", layout="centered")
+
 MODEL_DIR = "t5_pubmed_model"
 ZIP_NAME = "t5_pubmed_model.zip"
-FILE_ID = "1XZF_zbpWr-JIhlk1KkFR9gO4H9UrOiLv"
-URL = f"https://drive.google.com/file/d/1XZF_zbpWr-JIhlk1KkFR9gO4H9UrOiLv/view?usp=sharing"
 
-# -------------------------------------------------------------------
-# ⚙️ FUNCTION: Download & Load Model
-# -------------------------------------------------------------------
+# ✅ Use your GitHub Release direct link
+URL = "https://github.com/sha-md/t5-pubmed-summarizer/releases/download/v1.0-pubmed/t5_pubmed_model_zip.zip"
+
+
+# -----------------------------
+# 🧩 HELPER: DOWNLOAD & EXTRACT MODEL
+# -----------------------------
 @st.cache_resource(show_spinner=False)
-def load_model_from_drive():
+def load_model_from_github():
+    """Download the fine-tuned T5 model from GitHub Releases if not already present."""
     if not os.path.exists(MODEL_DIR):
         st.info("📦 Downloading model (~500 MB)... Please wait 3–5 minutes.")
-
-        headers = {"User-Agent": "Mozilla/5.0"}
-        with requests.get(URL, headers=headers, stream=True) as response:
-            response.raise_for_status()
-            content_type = response.headers.get("Content-Type", "")
-            if "html" in content_type.lower():
-                st.error("❌ Google Drive returned an HTML page. Make sure file is shared with 'Anyone with the link'.")
-                st.stop()
-
-            total_size = int(response.headers.get("content-length", 0))
-            downloaded_size = 0
+        response = requests.get(URL, stream=True)
+        if response.status_code == 200:
             with open(ZIP_NAME, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-                        downloaded_size += len(chunk)
-                        percent = (downloaded_size / total_size) * 100 if total_size else 0
-                        st.write(f"Downloading... {percent:.1f}%")
+            # ✅ Extract safely
+            if zipfile.is_zipfile(ZIP_NAME):
+                with zipfile.ZipFile(ZIP_NAME, "r") as zip_ref:
+                    zip_ref.extractall(".")
+                os.remove(ZIP_NAME)
+                st.success("✅ Model downloaded and extracted successfully!")
+            else:
+                st.error("❌ The downloaded file is not a valid ZIP. Please check your GitHub release link.")
+                st.stop()
+        else:
+            st.error(f"❌ Download failed with status code: {response.status_code}")
+            st.stop()
+    else:
+        st.info("✅ Model found locally (skipping download).")
 
-        st.info("📂 Extracting model files...")
-        with zipfile.ZipFile(ZIP_NAME, "r") as zip_ref:
-            zip_ref.extractall(".")
-        os.remove(ZIP_NAME)
-        st.success("✅ Model downloaded and extracted successfully!")
-
-    # Load model
+    # 🔹 Load the model and tokenizer
     tokenizer = T5Tokenizer.from_pretrained(MODEL_DIR)
     model = T5ForConditionalGeneration.from_pretrained(MODEL_DIR)
     return tokenizer, model
 
 
-# -------------------------------------------------------------------
-# 🧠 STREAMLIT APP UI
-# -------------------------------------------------------------------
+# -----------------------------
+# 🧠 LOAD MODEL
+# -----------------------------
 st.title("🧠 PubMed Medical Summarizer")
-st.write("Fine-tuned **T5-small** model for biomedical abstract summarization.")
+st.caption("Fine-tuned T5-small model for biomedical abstract summarization.")
 
-st.markdown("### 📘 About this App")
-st.markdown(
-    "This tool summarizes biomedical research abstracts using a fine-tuned Transformer model "
-    "trained on the PubMed dataset. Enter a long abstract below and get a concise summary instantly!"
+with st.spinner("Loading model..."):
+    tokenizer, model = load_model_from_github()
+st.success("Model ready for summarization!")
+
+
+# -----------------------------
+# 🩺 SUMMARIZATION FUNCTION
+# -----------------------------
+def summarize_text(text):
+    input_text = "summarize: " + text
+    inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
+    summary_ids = model.generate(
+        inputs,
+        max_length=150,
+        min_length=40,
+        num_beams=4,
+        early_stopping=True
+    )
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    return summary
+
+
+# -----------------------------
+# 📋 USER INTERFACE
+# -----------------------------
+st.subheader("📘 About this App")
+st.markdown("""
+This tool summarizes **biomedical research abstracts** using a fine-tuned Transformer model trained on the **PubMed dataset**.  
+Enter a long abstract below and get a concise, research-style summary instantly!
+""")
+
+sample_text = st.text_area(
+    "Paste your abstract or research paragraph here 👇",
+    height=250,
+    placeholder="Enter biomedical text here..."
 )
 
-# Load model
-tokenizer, model = load_model_from_drive()
-
-# -------------------------------------------------------------------
-# 🧾 INPUT AREA
-# -------------------------------------------------------------------
-st.subheader("🩺 Enter a medical abstract:")
-article = st.text_area("Paste the abstract text here:", height=250)
-
-if st.button("✨ Summarize"):
-    if not article.strip():
-        st.warning("Please enter some text to summarize.")
+if st.button("🔍 Summarize"):
+    if not sample_text.strip():
+        st.warning("⚠️ Please enter some text before summarizing.")
     else:
         with st.spinner("Generating summary... ⏳"):
-            inputs = tokenizer("summarize: " + article, return_tensors="pt", truncation=True, max_length=512)
-            summary_ids = model.generate(
-                inputs["input_ids"],
-                max_length=150,
-                min_length=40,
-                num_beams=4,
-                early_stopping=True
-            )
-            summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-
-        st.success("✅ Summary Generated!")
-        st.markdown("### 🩸 **Generated Summary:**")
+            summary = summarize_text(sample_text)
+        st.success("✅ Summary generated successfully!")
+        st.markdown("### 🩺 Generated Summary:")
         st.write(summary)
 
-# -------------------------------------------------------------------
-# 📚 FOOTER
-# -------------------------------------------------------------------
 st.markdown("---")
-st.caption("Built with ❤️ using Streamlit, Transformers, and PyTorch.")
+st.caption("Built with ❤️ using Streamlit, PyTorch, and Hugging Face Transformers.")
