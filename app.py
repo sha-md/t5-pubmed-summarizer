@@ -49,14 +49,26 @@ st.write("")
 
 c1, c2, c3, c4 = st.columns(4)
 
-c1.info("🤖 **Model**\n\nT5-small")
+c1.metric(
+    label="🤖 Model",
+    value="T5-small"
+)
 
-c2.info("📚 **Dataset**\n\nPubMed")
+c2.metric(
+    label="📚 Dataset",
+    value="PubMed"
+)
 
-c3.info("🧬 **Task**\n\nAbstractive Summarization")
+c3.metric(
+    label="🧬 Task",
+    value="Summarization"
+)
 
-c4.info("⚡ **Framework**\n\nHugging Face")
-
+c4.metric(
+    label="⚡ Parameters",
+    value="60M"
+)
+st.divider()
 
 # -----------------------------
 # 🧩 DOWNLOAD & EXTRACT MODEL
@@ -65,7 +77,7 @@ c4.info("⚡ **Framework**\n\nHugging Face")
 def load_model_from_github():
     """Download fine-tuned T5 model from GitHub Releases (if not already present)."""
     if not os.path.exists(MODEL_DIR):
-        st.info("📦 Downloading model (~500 MB)... Please wait 3–5 minutes.")
+        st.info("Downloading pretrained model (first run only)...")
         response = requests.get(URL, stream=True)
         if response.status_code == 200:
             with open(ZIP_NAME, "wb") as f:
@@ -76,7 +88,7 @@ def load_model_from_github():
                 with zipfile.ZipFile(ZIP_NAME, "r") as zip_ref:
                     zip_ref.extractall(".")
                 os.remove(ZIP_NAME)
-                st.success("✅ Model downloaded and extracted successfully!")
+                st.toast("Model downloaded successfully.")
             else:
                 st.error("❌ The downloaded file is not a valid ZIP. Please check your GitHub release link.")
                 st.stop()
@@ -84,19 +96,21 @@ def load_model_from_github():
             st.error(f"❌ Download failed (status code: {response.status_code}).")
             st.stop()
     else:
-        st.info("✅ Model found locally — skipping download.")
+        pass
 
     tokenizer = T5Tokenizer.from_pretrained(MODEL_DIR)
     model = T5ForConditionalGeneration.from_pretrained(MODEL_DIR)
+    model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     return tokenizer, model
 
 
 # -----------------------------
 # 🧠 LOAD MODEL
 # -----------------------------
-with st.spinner("Loading AI model... ⏳"):
+with st.spinner("Loading T5 model..."):
     tokenizer, model = load_model_from_github()
-st.success("✅ Model loaded and ready for summarization!")
+
+st.toast("✅ AI model ready")
 
 
 # -----------------------------
@@ -105,7 +119,7 @@ st.success("✅ Model loaded and ready for summarization!")
 def summarize_text(text, summary_length, beam_size):
 
     input_text = "summarize: " + text
-
+    inputs = inputs.to(model.device)
     inputs = tokenizer.encode(
         input_text,
         return_tensors="pt",
@@ -254,11 +268,8 @@ if st.button("🔍 Summarize"):
     if not sample_text.strip():
         st.warning("⚠️ Please enter or load text before summarizing.")
     else:
-        with st.spinner("Analyzing biomedical content..."):
-            progress = st.progress(0)
-            for percent in range(0, 101, 20):
-                time.sleep(0.2)
-                progress.progress(percent)
+        with st.spinner("Generating summary..."):
+            
             start = time.time()
             summary = summarize_text(
                 sample_text,
@@ -318,30 +329,20 @@ if st.button("🔍 Summarize"):
         st.divider()
 
         left, right = st.columns(2)
-        
+
         with left:
+
+            st.subheader("📄 Original Abstract")
         
-            st.subheader("📄 Original Text")
-        
-            st.text_area(
-                "",
-                sample_text,
-                height=350,
-                disabled=True,
-                key="original_text"
-            )
+            with st.container(border=True):
+                st.markdown(sample_text)
 
         with right:
+
+            st.subheader("🧠 AI Generated Summary")
         
-            st.subheader("🧠 AI Summary")
-        
-            st.text_area(
-                "",
-                summary,
-                height=350,
-                disabled=True,
-                key="summary_text"
-            )
+            with st.container(border=True):
+                st.write(summary)
 
         st.download_button(
             "📥 Download Summary",
