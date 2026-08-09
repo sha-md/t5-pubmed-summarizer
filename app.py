@@ -119,14 +119,14 @@ st.success("✅ AI model ready")
 def summarize_text(text, summary_length, beam_size):
 
     input_text = "summarize: " + text
-    inputs = inputs.to(model.device)
+    
     inputs = tokenizer.encode(
         input_text,
         return_tensors="pt",
         max_length=512,
         truncation=True
     )
-
+    
     if summary_length == "Short":
         max_len = 60
         min_len = 20
