@@ -88,7 +88,7 @@ def load_model_from_github():
                 with zipfile.ZipFile(ZIP_NAME, "r") as zip_ref:
                     zip_ref.extractall(".")
                 os.remove(ZIP_NAME)
-                st.toast("Model downloaded successfully.")
+                st.success("Model downloaded successfully.")
             else:
                 st.error("❌ The downloaded file is not a valid ZIP. Please check your GitHub release link.")
                 st.stop()
@@ -110,7 +110,7 @@ def load_model_from_github():
 with st.spinner("Loading T5 model..."):
     tokenizer, model = load_model_from_github()
 
-st.toast("✅ AI model ready")
+st.success("✅ AI model ready")
 
 
 # -----------------------------
